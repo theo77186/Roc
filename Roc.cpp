@@ -1715,7 +1715,7 @@ sint64 get_time();
 int time_to_stop(GSearchInfo* SI, int time, int searching);
 void check_time(const int* time, int searching);
 int input();
-void uci();
+int uci();
 
 #if TB_SEAGULL
 #include "tbcore.h"
@@ -8631,7 +8631,7 @@ void epd_test(char filename[], int time_limit)
 	fclose(fh);
 }
 
-void uci()
+int uci()
 {
 	const char* mdy = __DATE__;
 	const char now[10] = { mdy[7], mdy[8], mdy[9], mdy[10], mdy[0], mdy[1], mdy[2], mdy[4], mdy[5], 0 };
@@ -8720,7 +8720,7 @@ void uci()
 				{
 					ResetHash = 1;
 					hash_size = value;
-					longjmp(ResetJump, 1);
+					return 1;
 				}
 			}
 			else if (!memcmp(ptr, "Threads", 7) && !Searching)
@@ -8731,7 +8731,7 @@ void uci()
 				{
 					NewPrN = Max(1, Min(MaxPrN, value));
 					ResetHash = 0;
-					longjmp(ResetJump, 1);
+					return 1;
 				}
 			}
 			else if (!memcmp(ptr, "MultiPV", 7))
@@ -8779,17 +8779,17 @@ void uci()
 				if (ptr[0] == 't')
 				{
 					if (LargePages)
-						return;
+						return 0;
 					LargePages = 1;
 				}
 				else
 				{
 					if (!LargePages)
-						return;
+						return 0;
 					LargePages = 0;
 				}
 				ResetHash = 1;
-				longjmp(ResetJump, 1);
+				return 1;
 			}
 			else if (!memcmp(ptr, "Aspiration", 10))
 			{
@@ -8805,7 +8805,7 @@ void uci()
 				ptr += 17;
 				strncpy(Smpi->tb_path, ptr, sizeof(Smpi->tb_path) - 1);
 				ResetHash = 0;
-				longjmp(ResetJump, 1);
+				return 1;
 			}
 #endif
 #ifdef CPU_TIMING
@@ -8967,11 +8967,11 @@ int main(int argc, char* argv[])
 
 	fprintf(stdout, "Roc\n");
 
-reset_jump:
 	if (parent)
 	{
-		if (setjmp(ResetJump))
+		if (0) // can be reached from uci loop
 		{
+reset_jump:
 			for (i = 1; i < PrN; ++i) TerminateProcess(ChildPr[i], 0);
 			for (i = 1; i < PrN; ++i)
 			{
@@ -9017,7 +9017,8 @@ reset_jump:
 	exit(0);
 #endif
 
-	while (true) uci();
+	while (true)
+		if (uci()) goto reset_jump;
 	return 0;
 }
 #else
